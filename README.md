@@ -22,13 +22,13 @@ CodeMeet is an advanced collaborative platform designed for real-time synchroniz
 
 ## Technology Stack
 
-- **Frontend:** React.js, Ace/Monaco Editor for code editing.
+- **Frontend:** React.js with CodeMirror for code editing.
 - **Backend:** Node.js with Express.js, integrated WebSocket server for real-time communication.
 - **WebRTC:** Peer-to-peer connection for video calling and screen sharing.
 - **Code Editor:** CodeMirror
-- **Compiler:** From [Piston API](https://piston.readthedocs.io/en/latest/api-v2/)  
-  - **Base URL:** `https://emkc.org/api/v2/piston`
-  - **Endpoint:** `/execute`
+- **Compiler:** [JDoodle API](https://www.jdoodle.com/compiler-api)
+   - **Backend Proxy:** `/api/execute` (handled by the Express server)
+   - **Required Env:** `JDOODLE_CLIENT_ID`, `JDOODLE_CLIENT_SECRET`, `JDOODLE_URL` (defaults to `https://api.jdoodle.com/v1/execute`)
 
 ## How To Run
 
@@ -37,19 +37,26 @@ CodeMeet is an advanced collaborative platform designed for real-time synchroniz
 1. Clone the repository:
    ```bash
    git clone https://github.com/kaif-23/CodeMeet.git
+   ```
 
-   
-
-2. Navigate to the backend folder and install dependencies:
+2. Configure environment variables in `backend/.env`:
    ```bash
-    cd backend
-    npm i
-    npm start
+   JDOODLE_CLIENT_ID=your_id
+   JDOODLE_CLIENT_SECRET=your_secret
+   JDOODLE_URL=https://api.jdoodle.com/v1/execute
+   ```
 
-
-3. Navigate to the client folder and install dependencies:
+3. Navigate to the backend folder and install dependencies:
    ```bash
-    cd client
-    npm i
-    npm run dev
+   cd backend
+   npm i
+   npm start
+   ```
+
+4. Navigate to the client folder and install dependencies:
+   ```bash
+   cd client
+   npm i
+   npm run dev
+   ```
 
