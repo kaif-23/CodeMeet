@@ -4,16 +4,45 @@ const app = express();
 const cors = require("cors");
 const http = require('http');
 const path = require('path')
+const axios = require('axios');
+
+const PISTON_URL = process.env.PISTON_URL || 'http://localhost:2000/api/v2/piston/execute';
 app.use(express.json());
 app.use(cors());
 app.use(express.static('../client/build'));
 
-app.use((req,res,next)=>{
-  res.sendFile(path.join(__dirname,'../client/build','index.html'))
+app.post('/api/execute', async (req, res) => {
+  try {
+    const { language, version, files } = req.body;
+    if (!language || !version || !files) {
+      return res.status(400).json({ error: 'Missing language, version, or files payload.' });
+    }
+
+    const response = await axios.post(PISTON_URL, {
+      language,
+      version,
+      files,
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 15000,
+    });
+
+    res.json(response.data);
+  } catch (err) {
+    console.error('Execute proxy error:', err?.response?.status, err?.response?.data || err.message);
+    const status = err?.response?.status || 500;
+    res.status(status).json({ error: 'Execution failed', details: err?.response?.data || err.message });
+  }
+});
+
+app.use((req, res, next) => {
+  res.sendFile(path.join(__dirname, '../client/build', 'index.html'))
 })
 
 const server = http.createServer(app);
-const io = new Server(server,{cors:true})
+const io = new Server(server, { cors: true })
 
 
 const emailToSocketIdMap = new Map();
@@ -34,9 +63,8 @@ io.on("connection", (socket) => {
     const { email, room } = data;
     emailToSocketIdMap.set(email, socket.id);
     socketidToEmailMap.set(socket.id, email);
-    io.to(room).emit("user:joined", { email, id: socket.id });
-
     socket.join(room);
+    io.to(room).emit("user:joined", { email, id: socket.id });
     console.log(`${socket.id} joined ${room}`);
     io.to(socket.id).emit("room:join", data);
     const clients = getAllConnectedClients(room);
@@ -46,7 +74,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("code:change", ({ roomId, code }) => {
-    console.log("cdoe" ,code);
+    console.log("cdoe", code);
     socket.in(roomId).emit("code:change", { code });
 
     console.log(roomId);
@@ -57,8 +85,8 @@ io.on("connection", (socket) => {
     console.log("user:video:toggle", to, isVideoOff, email);
     io.to(to).emit("remote:video:toggle", { isVideoOff, email });
   });
-  socket.on("sync:code", ({ socketId, code }) => {
-    io.to(socketId).emit("code:change", { code });
+  socket.on("sync:code", ({ id, code }) => {
+    io.to(id).emit("code:change", { code });
   });
   socket.on("user:call", ({ to, offer, email }) => {
     io.to(to).emit("incomming:call", {
@@ -73,11 +101,15 @@ io.on("connection", (socket) => {
     socket.in(roomId).emit("output", { output });
   });
 
-  socket.on("language:change",({roomId,language,snippet})=>{
-    console.log(snippet,roomId);
-    socket.in(roomId).emit("language:change",{language,snippet})
+  socket.on("language:change", ({ roomId, language, snippet }) => {
+    console.log(snippet, roomId);
+    socket.in(roomId).emit("language:change", { language, snippet })
   })
   socket.on("call:accepted", ({ to, ans }) => {
+    if (!ans) {
+      io.to(to).emit("call:failed", { reason: "Peer could not start media." });
+      return;
+    }
     io.to(to).emit("call:accepted", { from: socket.id, ans });
   });
 
@@ -103,7 +135,7 @@ io.on("connection", (socket) => {
     io.to(to).emit("wait:for:call", { from: socket.id, email });
   });
   socket.on("disconnecting", () => {
- 
+
     io.emit("user:left", { id: socket.id });
 
     console.log(`Socket Disconnected: ${socket.id}`);

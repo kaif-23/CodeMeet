@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at 20% 20%, #e0f2fe 0, #f8fbff 35%),
+        radial-gradient(circle at 80% 0%, #dbeafe 0, #f8fbff 40%),
+        radial-gradient(circle at 50% 80%, #d9f3ff 0, #f8fbff 35%);
+    color: #0f172a;
+    min-height: 100vh;
+}
+
+a {
+    color: #1d4ed8;
+}
+
+::selection {
+    background: #bfdbfe;
+    color: #0f172a;
+}

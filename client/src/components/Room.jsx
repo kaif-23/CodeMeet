@@ -3,7 +3,7 @@ import ReactPlayer from "react-player";
 import peer from "../services/Peer.js";
 import { useSocket } from "../utils/SocketProvider.js.js";
 import Editor from "./EditorPage.js";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Toast, toast, Toaster } from "react-hot-toast";
 import Dialog from "./DialogBox.jsx";
 import ExecuteCode from "./ExecuteCode.js";
@@ -19,10 +19,12 @@ import {
   Minimize2,
   X,
   Play,
+  Video,
 } from "lucide-react";
 
 const RoomPage = () => {
   const socket = useSocket();
+  const navigate = useNavigate();
   const [incomingCall, setIncomingCall] = useState(false);
   const { roomId, email } = useParams();
   const [remoteVideoOff, setRemoteVideoOff] = useState(false);
@@ -38,6 +40,33 @@ const RoomPage = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const requestMediaStream = useCallback(async () => {
+    if (myStream) return myStream;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: { facingMode: "user" },
+      });
+      setMyStream(stream);
+      return stream;
+    } catch (err) {
+      console.error("Primary media request failed", err);
+      try {
+        const audioOnly = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+        toast.error("Camera is busy or unavailable. Joined with audio only.");
+        setIsVideoOff(true);
+        setMyStream(audioOnly);
+        return audioOnly;
+      } catch (fallbackErr) {
+        console.error("Audio-only request also failed", fallbackErr);
+        toast.error("Could not start audio/video. Check permissions or close apps using the camera.");
+        return null;
+      }
+    }
+  }, [myStream]);
   const handleUserJoined = useCallback(({ email, id }) => {
     console.log(`Email ${email} joined room`, id);
     socket.emit("sync:code", { id, codeRef });
@@ -51,36 +80,47 @@ const RoomPage = () => {
   }, []);
 
   const handleCallUser = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    const offer = await peer.getOffer();
-    socket.emit("user:call", { to: remoteSocketId, offer, email });
-    setMyStream(stream);
-    setShowDialog(false);
-  }, [remoteSocketId, socket]);
+    if (!remoteSocketId) {
+      toast.error("No participant available to call yet.");
+      return;
+    }
+    try {
+      const stream = await requestMediaStream();
+      if (!stream) return;
+      const offer = await peer.getOffer();
+      socket.emit("user:call", { to: remoteSocketId, offer, email });
+      setShowDialog(false);
+    } catch (err) {
+      console.error("getUserMedia failed", err);
+      toast.error("Camera/mic unavailable. Check permissions or close other apps using the camera.");
+    }
+  }, [remoteSocketId, socket, requestMediaStream]);
 
   const handleIncommingCall = useCallback(
     async ({ from, offer, fromEmail }) => {
       setRemoteSocketId(from);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      setIncomingCall(true);
-      console.log(true);
-      setMyStream(stream);
-      setRemoteEmail(fromEmail);
-      console.log(`Incoming Call`, from, offer);
-      const ans = await peer.getAnswer(offer);
-      socket.emit("call:accepted", { to: from, ans });
+      try {
+        const stream = await requestMediaStream();
+        if (!stream) {
+          socket.emit("call:failed", { to: from, reason: "Camera/mic unavailable" });
+          return;
+        }
+        setIncomingCall(true);
+        setRemoteEmail(fromEmail);
+        const ans = await peer.getAnswer(offer);
+        socket.emit("call:accepted", { to: from, ans });
+      } catch (err) {
+        console.error("Failed to start camera/mic for incoming call", err);
+        toast.error("Could not start video source. Check camera permissions or availability.");
+        socket.emit("call:failed", { to: from, reason: "Camera/mic unavailable" });
+      }
     },
-    [socket]
+    [socket, requestMediaStream]
   );
 
   const sendStreams = useCallback(() => {
+    if (!myStream) return;
     for (const track of myStream.getTracks()) {
       peer.peer.addTrack(track, myStream);
     }
@@ -88,6 +128,10 @@ const RoomPage = () => {
 
   const handleCallAccepted = useCallback(
     ({ from, ans }) => {
+      if (!ans) {
+        toast.error("Call could not start on the other side (camera/mic issue).");
+        return;
+      }
       peer.setLocalDescription(ans);
       console.log("Call Accepted!");
       sendStreams();
@@ -131,6 +175,9 @@ const RoomPage = () => {
     socket.on("user:joined", handleUserJoined);
     socket.on("incomming:call", handleIncommingCall);
     socket.on("call:accepted", handleCallAccepted);
+    socket.on("call:failed", ({ reason }) => {
+      toast.error(reason || "Call failed to start on the other side.");
+    });
     socket.on("peer:nego:needed", handleNegoNeedIncomming);
     socket.on("peer:nego:final", handleNegoNeedFinal);
     const handleUserLeft = ({ email }) => {
@@ -152,6 +199,7 @@ const RoomPage = () => {
       socket.off("user:joined", handleUserJoined);
       socket.off("incomming:call", handleIncommingCall);
       socket.off("call:accepted", handleCallAccepted);
+      socket.off("call:failed");
       socket.off("peer:nego:needed", handleNegoNeedIncomming);
       socket.off("peer:nego:final", handleNegoNeedFinal);
       socket.off("user:left", handleUserLeft);
@@ -224,7 +272,7 @@ const RoomPage = () => {
     setRemoteSocketId(null);
     setRemoteEmail(null);
     setRemoteStream(null);
-    window.close()
+    navigate("/");
   };
 
  const showScreen = async () => {
@@ -266,19 +314,32 @@ const RoomPage = () => {
   return (
     <div>
       <Toaster />
-      <div className="min-h-screen bg-black/15 flex">
-        {/* Main Content */}
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 flex text-slate-100">
         <div
-          className={`flex-1 p-4 transition-all duration-300 ${
+          className={`flex-1 p-5 transition-all duration-300 ${
             isEditorOpen ? "w-[60%]" : "w-full"
           }`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center">
+                <Video className="w-6 h-6 text-blue-200" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.15em] text-blue-200/80">CodeMeet</p>
+                <p className="font-semibold text-lg text-white">Room {roomId}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 text-sm text-slate-300">
+              <span className="px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30">Live</span>
+              <span className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700">{email}</span>
+            </div>
+          </div>
+
           <div
-            className={`grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-8rem)] `}>
-            {/* Video Grid */}
-            <div className="relative overflow-hidden rounded-lg  bg-black/15 shadow-lg">
-              <div
-                className={`absolute top-4 left-4 bg-black/50 text-white px-2 py-1 rounded-md text-sm`}>
-                {email}
+            className={`grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-9rem)]`}>
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 shadow-2xl">
+              <div className="absolute top-4 left-4 bg-slate-900/70 text-blue-50 px-3 py-1 rounded-full text-sm border border-blue-900/50">
+                You ({email})
               </div>
               {myStream && (
                 <>
@@ -289,19 +350,19 @@ const RoomPage = () => {
                       height="100%"
                       width="100%"
                       url={myStream}
-                      className ="rounded-lg"
+                      className="rounded-2xl"
                     />
                   ) : (
-                    <div className="w-full h-full justify-center flex items-center">
-                      <p className="text-[100px]">{email[0].toUpperCase()}</p>
+                    <div className="w-full h-full justify-center flex items-center text-blue-100">
+                      <p className="text-[90px] font-semibold">{email[0].toUpperCase()}</p>
                     </div>
                   )}
                 </>
               )}
             </div>
             {remoteSocketId && (
-              <div className="relative overflow-hidden rounded-lg  bg-black/15 shadow-lg">
-                <div className="absolute top-4 left-4 bg-black/50 text-white px-2 py-1 rounded-md text-sm">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 shadow-2xl">
+                <div className="absolute top-4 left-4 bg-slate-900/70 text-blue-50 px-3 py-1 rounded-full text-sm border border-blue-900/50">
                   {remoteEmail}
                 </div>
 
@@ -313,35 +374,28 @@ const RoomPage = () => {
                         muted={isMuted}
                         height="100%"
                         width="100%"
-                        
                         url={remoteStream}
                       />
                     ) : (
-                      <div className="w-full h-full justify-center flex items-center">
-                        <p className="text-[100px]">
+                      <div className="w-full h-full justify-center flex items-center text-blue-100">
+                        <p className="text-[90px] font-semibold">
                           {remoteEmail[0].toUpperCase()}
                         </p>
                       </div>
                     )}
                   </>
                 )}
-                {/* {!remoteStream && remoteEmail && (
-                  <div className="w-full h-full justify-center flex items-center">
-                    <p className="text-[100px]">{remoteEmail[0].toUpperCase()}</p>
-                  </div>
-                )} */}
               </div>
             )}
           </div>
 
-          {/* Controls */}
-          <div className="fixed bottom-0 left-0 right-0 p-6 bg-black/15 backdrop-blur-sm border-t">
+          <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-900/80 backdrop-blur-md border-t border-blue-900/40">
             <div className="max-w-3xl mx-auto flex items-center justify-center gap-4">
               <button
                 className={`p-3 rounded-full border ${
                   isMuted
-                    ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
-                    : "hover:bg-gray-100 border-gray-200"
+                    ? "bg-rose-500/20 text-rose-100 border-rose-400/60 hover:bg-rose-500/30"
+                    : "bg-slate-800/70 text-white border-slate-700 hover:bg-slate-700"
                 }`}
                 onClick={() => setIsMuted(!isMuted)}>
                 {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
@@ -349,32 +403,29 @@ const RoomPage = () => {
               <button
                 className={`p-3 rounded-full border ${
                   isVideoOff
-                    ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
-                    : "hover:bg-gray-100 border-gray-200"
+                    ? "bg-rose-500/20 text-rose-100 border-rose-400/60 hover:bg-rose-500/30"
+                    : "bg-slate-800/70 text-white border-slate-700 hover:bg-slate-700"
                 }`}
                 onClick={toggleVideo}>
                 {isVideoOff ? <VideoOff size={20} /> : <Camera size={20} />}
               </button>
-              <button className="p-3 rounded-full border border-gray-200 hover:bg-gray-100">
+              <button className="p-3 rounded-full border bg-slate-800/70 text-white border-slate-700 hover:bg-slate-700">
                 <Monitor size={20} onClick={showScreen} />
               </button>
-              <button className="p-3 rounded-full bg-red-500 text-white hover:bg-red-600">
-                {remoteSocketId && (
-                  <Phone
-                    size={20}
-                    onClick={handleLeaveRoom}
-                    className="rotate-[135deg]"
-                  />
-                )}
-              </button>
-              <div className="w-px h-6 bg-gray-200"></div>
               <button
-                className="p-3 rounded-full border border-gray-200 hover:bg-gray-100"
+                className="p-3 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-lg shadow-rose-500/30 disabled:opacity-50"
+                onClick={handleLeaveRoom}
+                disabled={!roomId}>
+                <Phone size={20} className="rotate-[135deg]" />
+              </button>
+              <div className="w-px h-6 bg-slate-600"></div>
+              <button
+                className="p-3 rounded-full border bg-slate-800/70 text-white border-slate-700 hover:bg-slate-700"
                 onClick={() => setIsEditorOpen(!isEditorOpen)}>
                 <Code size={20} />
               </button>
               <button
-                className="p-3 rounded-full border border-gray-200 hover:bg-gray-100"
+                className="p-3 rounded-full border bg-slate-800/70 text-white border-slate-700 hover:bg-slate-700"
                 onClick={() => setIsFullscreen(!isFullscreen)}>
                 {isFullscreen ? (
                   <Minimize2 size={20} />
@@ -386,19 +437,18 @@ const RoomPage = () => {
           </div>
         </div>
 
-        {/* Code Editor Panel */}
         {isEditorOpen && (
-          <div className="w-[40%] border-l border-gray-200 bg-black/15 relative h-full">
-            <div className="p-4 border-b border-gray-200 bg-white/50 backdrop-blur-sm flex items-center justify-between">
-              <h2 className="font-semibold">Code Editor</h2>
+          <div className="w-[40%] border-l border-slate-800 bg-slate-900/60 relative h-full">
+            <div className="p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur flex items-center justify-between text-slate-100">
+              <h2 className="font-semibold">Collaborative Editor</h2>
               <button
-                className="p-2 hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-slate-800 rounded-full"
                 onClick={() => setIsEditorOpen(false)}>
                 <X size={20} />
               </button>
             </div>
             <div className="p-4">
-              <div className="bg-white/50 rounded-lg min-h-[calc(90-10rem)] shadow-sm">
+              <div className="bg-slate-800/40 border border-slate-700 rounded-xl min-h-[calc(100vh-12rem)] shadow-xl">
                 <Editor
                   roomId={roomId}
                   socket={socket}

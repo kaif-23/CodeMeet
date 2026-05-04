@@ -9,7 +9,10 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = (props) => {
-  const socket = useMemo(() => io("https://syntaxsync-4.onrender.com/"), []);
+  const socket = useMemo(() => {
+    const url = process.env.REACT_APP_SOCKET_URL || "http://localhost:8000";
+    return io(url);
+  }, []);
 
   return (
     <SocketContext.Provider value={socket}>

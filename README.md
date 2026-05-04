@@ -1,6 +1,6 @@
 ## Key Points
 
-[Syntax Sync](#syntax-sync) is an advanced collaborative platform designed for real-time synchronization and editing of code across multiple users. Built with WebRTC and WebSockets, it combines the power of real-time communication with efficient code collaboration tools. The platform aims to enhance team productivity by providing an interactive environment where participants can code, debug, and execute programs simultaneously while staying in sync.
+[CodeMeet](#codemeet) is an advanced collaborative platform designed for real-time synchronization and editing of code across multiple users. Built with WebRTC and WebSockets, it combines the power of real-time communication with efficient code collaboration tools. The platform aims to enhance team productivity by providing an interactive environment where participants can code, debug, and execute programs simultaneously while staying in sync.
 
 
 - [Key Features](#key-features)
@@ -8,9 +8,9 @@
 - [How To Run](#how-to-run)
 - [Use Cases](#use-cases)
 
-## Syntax Sync
+## CodeMeet
 
-Syntax Sync is an advanced collaborative platform designed for real-time synchronization and editing of code across multiple users. Built with WebRTC and WebSockets, it combines the power of real-time communication with efficient code collaboration tools. The platform aims to enhance team productivity by providing an interactive environment where participants can code, debug, and execute programs simultaneously while staying in sync.
+CodeMeet is an advanced collaborative platform designed for real-time synchronization and editing of code across multiple users. Built with WebRTC and WebSockets, it combines the power of real-time communication with efficient code collaboration tools. The platform aims to enhance team productivity by providing an interactive environment where participants can code, debug, and execute programs simultaneously while staying in sync.
 
 ## Key Features
 
@@ -36,7 +36,7 @@ Syntax Sync is an advanced collaborative platform designed for real-time synchro
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/kaif-23/syntaxSync.git
+   git clone https://github.com/kaif-23/CodeMeet.git
 
    
 

@@ -1,19 +1,19 @@
  const Dialog = ({ user, onAdmit, onClose }) => {
   return (
-    <div className="fixed bottom-4 left-4 bg-white shadow-md rounded-lg p-4 border border-gray-200">
-      <p className="text-gray-800">
-        <strong>{user}</strong> has joined the room.
+    <div className="fixed bottom-4 left-4 bg-white/90 shadow-xl rounded-xl p-4 border border-blue-100 backdrop-blur">
+      <p className="text-slate-800">
+        <strong>{user}</strong> wants to join.
       </p>
-      <div className="flex gap-2 mt-2">
+      <div className="flex gap-2 mt-3">
         <button
-          className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
           onClick={onAdmit}>
           Admit
         </button>
         <button
-          className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
+          className="px-4 py-2 bg-slate-100 text-slate-800 rounded-lg hover:bg-slate-200"
           onClick={onClose}>
-          Close
+          Dismiss
         </button>
       </div>
     </div>

@@ -190,11 +190,15 @@ function Editor({ socket, roomId, onCodeChange }) {
         <Button
           variant="contained"
           sx={{
-            backgroundColor: "#22c55e",
+            backgroundColor: "#2563eb",
             marginTop: "4px",
-            color: "black",
-            border: "#22c55e",
-            "&:hover": { backgroundColor: "#22c55f" },
+            color: "white",
+            border: "#1d4ed8",
+            boxShadow: "0 10px 30px rgba(37, 99, 235, 0.25)",
+            borderRadius: "12px",
+            textTransform: "none",
+            fontWeight: 700,
+            "&:hover": { backgroundColor: "#1d4ed8" },
           }}
           onClick={handleClickOpen}>
           {selectedLanguage || "Select Language"}
@@ -221,16 +225,16 @@ function Editor({ socket, roomId, onCodeChange }) {
             <Button onClick={handleClose}>Close</Button>
           </DialogActions>
         </Dialog>
-        <p className="text-Black font-bold m-2">Execute Code:</p>
+        <p className="text-slate-100 font-bold m-2">Execute Code:</p>
         <Play
           onClick={handleExecuteCode}
           size={"2rem"}
-          className="bg-green-500 border rounded-full p-1 "
+          className="bg-blue-600 text-white border border-blue-500 rounded-full p-1 shadow-lg shadow-blue-400/30"
         />
       </div>
 
-      <p className="text-Black">Output:</p>
-      <div className="w-full bg-gray-800 text-white p-2 my-4 h-36 overflow-y-hidden">
+      <p className="text-slate-100">Output:</p>
+      <div className="w-full bg-slate-900 text-blue-50 p-3 my-4 h-36 overflow-y-auto rounded-lg border border-slate-700">
         <pre>{output}</pre>
       </div>
     </div>
