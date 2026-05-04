@@ -10,7 +10,11 @@ export const useSocket = () => {
 
 export const SocketProvider = (props) => {
   const socket = useMemo(() => {
-    const url = process.env.REACT_APP_SOCKET_URL || "http://localhost:8000";
+    const defaultUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:8000"
+        : window.location.origin;
+    const url = process.env.REACT_APP_SOCKET_URL || defaultUrl;
     return io(url);
   }, []);
 
