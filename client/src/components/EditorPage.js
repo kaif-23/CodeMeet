@@ -15,21 +15,12 @@ import {
   CODE_SNIPPETS,
   LANGUAGE_MODES,
 } from "../constants/constant";
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Select,
-} from "@mui/material";
 
-function Editor({ socket, roomId, onCodeChange }) {
+
+function Editor({ socket, roomId, onCodeChange, isVisible }) {
   const editorRef = useRef(null);
   const textareaRef = useRef(null);
-  const code = useRef("");
-  const [open, setOpen] = useState(false);
+  const codeRef = useRef("");
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
 
   const [output, setOutput] = useState("your code output comes here...");
@@ -50,16 +41,16 @@ function Editor({ socket, roomId, onCodeChange }) {
       });
 
       // Set size after initialization
-      editorRef.current.setSize("100%", "h-full");
+      editorRef.current.setSize("100%", "100%");
       editorRef.current.setValue(CODE_SNIPPETS[selectedLanguage]);
-      code.current = CODE_SNIPPETS[selectedLanguage];
+      codeRef.current = CODE_SNIPPETS[selectedLanguage];
 
       // Set up change handler
       editorRef.current.on("change", (instance, changes) => {
         const { origin } = changes;
         if (origin !== "setValue") {
           const currentCode = instance.getValue();
-          code.current = currentCode;
+          codeRef.current = currentCode;
           console.log(currentCode);
           onCodeChange(currentCode);
           socket.emit("code:change", { roomId, code: currentCode });
@@ -78,11 +69,20 @@ function Editor({ socket, roomId, onCodeChange }) {
     };
   }, []); // Empty dependency array since we want to initialize only once
 
+  useEffect(() => {
+    if (!editorRef.current || !isVisible) return;
+    const timer = setTimeout(() => {
+      editorRef.current.refresh();
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [isVisible]);
+
   // Separate useEffect for socket event listeners
   useEffect(() => {
-    const handleCodeChange = ({ code }) => {
-      if (editorRef.current && code) {
-        editorRef.current.setValue(code);
+    const handleCodeChange = ({ code: payloadCode }) => {
+      if (editorRef.current && payloadCode) {
+        editorRef.current.setValue(payloadCode);
+        codeRef.current = payloadCode;
       }
     };
 
@@ -109,7 +109,7 @@ function Editor({ socket, roomId, onCodeChange }) {
     try {
       const result = await executeCode({
         language: selectedLanguage,
-        sourceCode: code.current,
+        sourceCode: codeRef.current,
       });
       console.log("Execution result:", result);
       //setting output
@@ -131,28 +131,20 @@ function Editor({ socket, roomId, onCodeChange }) {
   };
 
   useEffect(() => {
-    socket.emit("output", { roomId, output });
     const handleLanguageChange = ({ language, snippet }) => {
-      console.log(snippet)
-      if (LANGUAGE_MODES[language]) {
+      if (LANGUAGE_MODES[language] && editorRef.current) {
         setSelectedLanguage(language);
         editorRef.current.setOption("mode", LANGUAGE_MODES[language]);
         editorRef.current.setValue(snippet);
-        code.current = snippet;
-        console.log(snippet)
+        codeRef.current = snippet;
       }
     };
 
     socket.on("language:change", handleLanguageChange);
-  }, [output]);
-
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-  };
+    return () => {
+      socket.off("language:change", handleLanguageChange);
+    };
+  }, [socket]);
 
   const handleSelectLanguage = (event) => {
     const language = event.target.value;
@@ -162,7 +154,7 @@ function Editor({ socket, roomId, onCodeChange }) {
     if (mode) {
       editorRef.current.setOption("mode", mode);
       editorRef.current.setValue(CODE_SNIPPETS[language]);
-      code.current = CODE_SNIPPETS[language];
+      codeRef.current = CODE_SNIPPETS[language];
       console.log("Mode set to:", mode);
       socket.emit("language:change", {
         roomId,
@@ -182,60 +174,43 @@ function Editor({ socket, roomId, onCodeChange }) {
   //   };
   // }, [socket]);
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full flex flex-col gap-3 min-h-0">
       <Toaster />
-      <textarea ref={textareaRef} className="h-full w-full" />
-
-      <div className="flex justify-center items-center">
-        <Button
-          variant="contained"
-          sx={{
-            backgroundColor: "#2563eb",
-            marginTop: "4px",
-            color: "white",
-            border: "#1d4ed8",
-            boxShadow: "0 10px 30px rgba(37, 99, 235, 0.25)",
-            borderRadius: "12px",
-            textTransform: "none",
-            fontWeight: 700,
-            "&:hover": { backgroundColor: "#1d4ed8" },
-          }}
-          onClick={handleClickOpen}>
-          {selectedLanguage || "Select Language"}
-        </Button>
-        <Dialog open={open} onClose={handleClose}>
-          <DialogTitle>Select a Language</DialogTitle>
-          <DialogContent>
-            <Select
-              value={selectedLanguage}
-              onChange={handleSelectLanguage}
-              displayEmpty
-              fullWidth>
-              <MenuItem value="" disabled>
-                Select a language
-              </MenuItem>
-              {Object.keys(LANGUAGE_VERSIONS).map((language) => (
-                <MenuItem key={language} value={language}>
-                  {language}
-                </MenuItem>
-              ))}
-            </Select>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Close</Button>
-          </DialogActions>
-        </Dialog>
-        <p className="text-slate-100 font-bold m-2">Execute Code:</p>
-        <Play
-          onClick={handleExecuteCode}
-          size={"2rem"}
-          className="bg-blue-600 text-white border border-blue-500 rounded-full p-1 shadow-lg shadow-blue-400/30"
-        />
+      <div className="flex-1 min-h-0 rounded-xl border border-slate-800 bg-slate-900/70 overflow-hidden">
+        <textarea ref={textareaRef} className="h-full w-full" />
       </div>
 
-      <p className="text-slate-100">Output:</p>
-      <div className="w-full bg-slate-900 text-blue-50 p-3 my-4 h-36 overflow-y-auto rounded-lg border border-slate-700">
-        <pre>{output}</pre>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <label className="text-slate-300 text-sm">Language</label>
+          <select
+            value={selectedLanguage}
+            onChange={handleSelectLanguage}
+            className="bg-slate-800 text-slate-100 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {Object.keys(LANGUAGE_VERSIONS).map((language) => (
+              <option key={language} value={language}>
+                {language}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <p className="text-slate-100 font-bold text-sm sm:text-base">Execute Code:</p>
+          <button
+            type="button"
+            onClick={handleExecuteCode}
+            className="bg-blue-600 text-white border border-blue-500 rounded-full p-2 shadow-lg shadow-blue-400/30 hover:bg-blue-700">
+            <Play size={20} />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-slate-100">Output:</p>
+        <div className="w-full bg-slate-900 text-blue-50 p-3 h-28 sm:h-36 overflow-y-auto rounded-lg border border-slate-700 text-sm sm:text-base">
+          <pre>{output}</pre>
+        </div>
       </div>
     </div>
   );

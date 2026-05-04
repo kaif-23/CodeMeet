@@ -55,18 +55,18 @@ const Lobby = () => {
   }, [socket, handleJoinRoom]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-sky-50 via-white to-indigo-50">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-gradient-to-br from-sky-50 via-white to-indigo-50">
       <Toaster />
-      <div className="max-w-4xl w-full grid md:grid-cols-2 gap-8 items-center">
-        <div className="bg-white/70 backdrop-blur-xl border border-blue-100 shadow-2xl rounded-3xl p-8">
+      <div className="max-w-4xl w-full grid md:grid-cols-2 gap-6 md:gap-8 items-center">
+        <div className="bg-white/70 backdrop-blur-xl border border-blue-100 shadow-2xl rounded-3xl p-6 sm:p-8">
           <div className="text-left mb-8 space-y-2">
             <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-blue-50 text-blue-700 font-semibold tracking-wide">
               <Video className="w-5 h-5" />
               CodeMeet
             </div>
-            <h1 className="text-3xl font-bold text-slate-900">Join your meeting space</h1>
-            <p className="text-slate-500">Secure rooms, synced code, and face-to-face collaboration in one sleek place.</p>
-            <div className="flex gap-3 pt-3">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Join your meeting space</h1>
+            <p className="text-sm sm:text-base text-slate-500">Secure rooms, synced code, and face-to-face collaboration in one sleek place.</p>
+            <div className="flex flex-wrap gap-3 pt-3">
               <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm">Real-time editor</span>
               <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">Calls + screen share</span>
             </div>

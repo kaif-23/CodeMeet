@@ -1,33 +1,48 @@
 const { Server } = require("socket.io");
 const express = require("express");
+require("dotenv").config();
 const app = express();
 const cors = require("cors");
 const http = require('http');
 const path = require('path')
 const axios = require('axios');
 
-const PISTON_URL = process.env.PISTON_URL || 'http://localhost:2000/api/v2/piston/execute';
+const JDOODLE_URL = process.env.JDOODLE_URL || 'https://api.jdoodle.com/v1/execute';
+const JDOODLE_CLIENT_ID = process.env.JDOODLE_CLIENT_ID;
+const JDOODLE_CLIENT_SECRET = process.env.JDOODLE_CLIENT_SECRET;
 app.use(express.json());
 app.use(cors());
 app.use(express.static('../client/build'));
 
 app.post('/api/execute', async (req, res) => {
   try {
-    const { language, version, files } = req.body;
-    if (!language || !version || !files) {
-      return res.status(400).json({ error: 'Missing language, version, or files payload.' });
+    const { language, versionIndex, sourceCode, stdin } = req.body;
+    if (!language || !sourceCode) {
+      return res.status(400).json({ error: 'Missing language or sourceCode payload.' });
+    }
+    if (!JDOODLE_CLIENT_ID || !JDOODLE_CLIENT_SECRET) {
+      return res.status(500).json({
+        error: 'JDoodle credentials are not configured.',
+      });
     }
 
-    const response = await axios.post(PISTON_URL, {
-      language,
-      version,
-      files,
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
+    const response = await axios.post(
+      JDOODLE_URL,
+      {
+        clientId: JDOODLE_CLIENT_ID,
+        clientSecret: JDOODLE_CLIENT_SECRET,
+        script: sourceCode,
+        language,
+        versionIndex: versionIndex ?? "0",
+        stdin: stdin || "",
       },
-      timeout: 15000,
-    });
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 15000,
+      }
+    );
 
     res.json(response.data);
   } catch (err) {
@@ -84,6 +99,10 @@ io.on("connection", (socket) => {
   socket.on("user:video:toggle", ({ to, isVideoOff, email }) => {
     console.log("user:video:toggle", to, isVideoOff, email);
     io.to(to).emit("remote:video:toggle", { isVideoOff, email });
+  });
+  socket.on("user:audio:toggle", ({ to, isMuted, email }) => {
+    console.log("user:audio:toggle", to, isMuted, email);
+    io.to(to).emit("remote:audio:toggle", { isMuted, email });
   });
   socket.on("sync:code", ({ id, code }) => {
     io.to(id).emit("code:change", { code });

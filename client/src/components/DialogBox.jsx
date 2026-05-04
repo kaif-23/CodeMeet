@@ -1,6 +1,6 @@
  const Dialog = ({ user, onAdmit, onClose }) => {
   return (
-    <div className="fixed bottom-4 left-4 bg-white/90 shadow-xl rounded-xl p-4 border border-blue-100 backdrop-blur">
+    <div className="fixed z-50 bottom-24 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-auto bg-white/90 shadow-xl rounded-xl p-4 border border-blue-100 backdrop-blur max-w-sm">
       <p className="text-slate-800">
         <strong>{user}</strong> wants to join.
       </p>

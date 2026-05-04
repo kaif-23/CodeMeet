@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LANGUAGE_VERSIONS } from "../constants/constant";
+import { LANGUAGE_IDS, LANGUAGE_VERSIONS } from "../constants/constant";
 
 const API = axios.create({
   baseURL: "/api",
@@ -7,19 +7,26 @@ const API = axios.create({
 
 export const executeCode = async ({ language, sourceCode }) => {
   console.log(language, sourceCode);
-  const version = LANGUAGE_VERSIONS[language];
-  if (!version) {
+  const languageId = LANGUAGE_IDS[language];
+  const versionIndex = LANGUAGE_VERSIONS[language];
+  if (!languageId || versionIndex === undefined) {
     throw new Error(`Language ${language} is not supported.`);
   }
 
   const response = await API.post("/execute", {
-    language,
-    version,
-    files: [
-      {
-        content: sourceCode,
-      },
-    ],
+    language: languageId,
+    versionIndex,
+    sourceCode,
   });
-  return response.data;
+  const result = response.data || {};
+  const output =
+    typeof result.output === "string"
+      ? result.output
+      : result.stderr || result.error || "";
+  return {
+    run: {
+      output,
+    },
+    raw: result,
+  };
 };
