@@ -14,6 +14,14 @@ const Lobby = () => {
   const handleSubmitForm = useCallback(
     (e) => {
       e.preventDefault();
+      const newErrors = {};
+      if (!room.trim()) newErrors.roomId = "Room ID is required";
+      if (!email.trim()) newErrors.username = "Name is required";
+      
+      setErrors(newErrors);
+
+      if (Object.keys(newErrors).length > 0) return;
+
       socket.emit("room:join", { email, room });
     },
     [email, room, socket]
